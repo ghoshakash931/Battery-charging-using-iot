@@ -1,0 +1,60 @@
+#include <ESP8266WiFi.h>// esp library
+#include "ThingSpeak.h" //establishing connection with thingspeak
+const char * myWriteAPIKey = "VFTV7HN0F5DJKWB4";     
+const char* ssid =  "JyotiWifi";     
+const char* pass =  "Monty@123"; 
+const char* server = "api.thingspeak.com";
+unsigned long  myChannelNumber = 2;
+WiFiClient client;
+float volt =0.0;
+ int bat_percentage;//battery percentage
+float temp=0.0;
+float r1=4500.0;   //4.5 k ohm resistor 
+float r2=4500.0;    // for voltage division 
+int flag = 1;
+
+void setup()
+{
+   Serial.begin(115200);    //begin serial communication 
+      
+       WiFi.mode(WIFI_STA);
+       ThingSpeak.begin(client);  // Initialize ThingSpeak
+            
+}
+ void loop() 
+ {
+
+if(WiFi.status() != WL_CONNECTED){
+  Serial.print("Attempting to connect");
+  while(WiFi.status() != WL_CONNECTED){
+    WiFi.begin(ssid, pass); 
+    delay(5000);     
+  } //connecting to wifi if connections gets discontinued
+  Serial.println("\nConnected.");
+}
+  int analogvalue = analogRead(A0);//read analog  value
+    temp = (analogvalue * 3.3) / 1024.0;//convert analog to voltage value
+    volt = temp / (r2/(r1+r2)); 
+    bat_percentage = mapfloat(volt, 2.8, 4.2, 0, 100); //2.8V as Battery Cut off Voltage & 4.2V as Maximum Voltage for 18650 battery
+     
+      Serial.print("Voltage: ");
+      Serial.println(volt);
+       Serial.print("\t Battery Percentage = ");
+       Serial.println(bat_percentage);
+      delay(10000);
+       // set the fields with the values
+    ThingSpeak.setField(1, volt);
+    //ThingSpeak.setField(1, temperatureF);
+    ThingSpeak.setField(2, bat_percentage);
+    int x = ThingSpeak.writeFields(myChannelNumber, myWriteAPIKey);
+if(x == 200){
+  Serial.println("Channel update successful.");
+}
+else{
+  Serial.println("Problem updating channel. HTTP error code " + String(x));
+}
+ }
+ float mapfloat(float x, float in_min, float in_max, float out_min, float out_max)//mapping voltage value to percentage in terms of 2.8 and 4.2
+{
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
